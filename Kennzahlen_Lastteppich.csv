@@ -1,0 +1,65 @@
+Hauptkategorie,Element / Bezeichnung,Details / Werte / Auswahlmöglichkeiten
+1. Filter (Global & Sidebar),Betriebstag,Zeitraum (Von / Bis)
+,Tagesklasse,"(Alles), Werktag, Wochenende"
+,Zeitbereiche,"(Alles), 00:00-06:00, 00:00-08:00, 06:00-09:00, 08:00-16:00, 09:00-15:00, 15:00-20:00, 16:00-36:00, 20:00-36:00"
+,Fahrtart,"(Alles), Normal"
+,Linie,"(Alles), 1, 2, 3 (bzw. 1:1, 2:2, 3:3)"
+,Richtung,"(Alles), A, B"
+,Linienfahrweg,"(Alles), z.B. 1:A:1, 1:B:2"
+,Wochentag,"(Alles), Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag"
+,Umlauf,(Suchfeld)
+,Kurs Nr.,(Auswahlliste)
+2. Spaltengruppierung,Aggregations-Ebene,Total
+,,Quartal
+,,Monat
+,,Woche
+,,Tagesklasse
+,,Wochentag
+,,Betriebstag
+,,Zeitbereiche
+,,Fahrzeitprofil
+,,Stunde
+,,Halbstunden
+,,Viertelstunde
+,,Abfahrt
+3. Attribute (Zeilen),Zeilenbeschriftung,Linie
+,,Richtung
+,,Teilstrecke
+,,Haltepunkt
+,,Haltestelle
+,,Sequenz
+,,Distanz PLAN
+4. Metriken,Prozentuale Anteile,Pünktlich (%)
+,,Verspätung (%)
+,,Verfrühung (%)
+,Kategorien (Absolut/Status),Stark verfrüht
+,,Verfrüht
+,,Pünktlich
+,,Verspätet
+,,Stark verspätet
+,Zeitliche Abweichungen,Abw. Abfahrt AVG (s)
+,,Abw. Abfahrt (Halt) AVG (s)
+,,Abw. Ankunft AVG (s)
+,,Abw. Ankunft (Halt) AVG (s)
+,Fahrzeiten,Fahrzeit PLAN AVG
+,,Fahrzeit IST AVG
+5. Detail-Kennzahlen,"Spalten der Tabelle ""Details""",Fahrt (ID)
+,,Fahrzeug
+,,Lfw. Nr.
+,,Abfahrt PLAN (Fahrt)
+,,Abfahrt IST (Fahrt)
+,,Abfahrt PLAN (Haltestelle)
+,,Abfahrt IST (Haltestelle)
+,,Verfrühung (%)
+6. Definitionen,Pünktlichkeitsklassen (Grenzwerte),Stark verspätet: < -02:00:00 bis -00:03:00 (-7200s bis -180s)
+,,Verspätet: -00:03:00 bis -00:01:00 (-180s bis -60s)
+,,Pünktlich: -00:01:00 bis 00:00:30 (-60s bis 30s)
+,,Verfrüht: 00:00:30 bis 00:03:00 (30s bis 180s)
+,,Stark verfrüht: 00:03:00 bis 01:00:00 (180s bis 3600s)
+,Perzentile,P1: 97.5%
+,,P2: 84%
+,,P3: 50.0%
+,,P4: 16%
+,,P5: 2.5%
+7. Analyse-Art,Typ,Linienrichtung
+,,Linienfahrwege
