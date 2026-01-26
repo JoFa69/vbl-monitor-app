@@ -128,17 +128,21 @@ TABLE_NAME: Optional[str] = None
 
 def _init_db():
     global conn, TABLE_NAME
+    # WICHTIG: Import muss ganz oben stehen, bevor 'os' verwendet wird
+    import os
+    
+    # WICHTIG: Für Vercel müssen wir das Home-Verzeichnis sofort auf /tmp setzen,
+    # bevor irgendeine DuckDB-Operation startet.
+    os.environ['HOME'] = '/tmp'
+    
     token = os.environ.get('MOTHERDUCK_TOKEN')
     
     try:
         if token:
             # Scenario A: Cloud (MotherDuck)
             logger.info("Connecting to MotherDuck Cloud...")
-            # 1. Wir setzen das Home-Verzeichnis für diesen Prozess auf /tmp
-            import os
-            os.environ['HOME'] = '/tmp'
-    
-            # 2. Jetzt verbinden wir uns (OHNE den config-Parameter von vorhin!)
+            
+            # Jetzt verbinden wir uns (DuckDB nutzt nun automatisch /tmp als Home)
             conn = duckdb.connect(f'md:my_db?motherduck_token={token}')
             TABLE_NAME = "my_db.main.data_nov25"
             logger.info("Connected to MotherDuck Cloud")
