@@ -130,73 +130,43 @@ def _init_db():
     global conn, TABLE_NAME
     import os
     
-    # 1. WICHTIG: Home-Verzeichnis Fix für Vercel
+    # 1. Home-Verzeichnis Fix für Vercel
     os.environ['HOME'] = '/tmp'
     
-    # Debugging: Wir prüfen nur, ob der Token da ist (nicht den Inhalt ausgeben!)
-    debug_token = os.environ.get('MOTHERDUCK_TOKEN', '').strip()
-    if debug_token:
-        print(f"DEBUG: Token gefunden. Endung: ...{debug_token[-5:]}")
+    # 2. Token holen und BEREINIGEN (.strip() entfernt Müll)
+    raw_token = os.environ.get('MOTHERDUCK_TOKEN', '')
+    clean_token = raw_token.strip()
+    
+    # 3. DER TRICK: Wir überschreiben die System-Variable mit der sauberen Version!
+    # Jetzt findet duckdb.connect('md:') garantiert den sauberen Token.
+    os.environ['MOTHERDUCK_TOKEN'] = clean_token
+    
+    # Debugging
+    if clean_token:
+        print(f"DEBUG: Token bereinigt und gesetzt. Endung: ...{clean_token[-5:]}")
     else:
-        print("DEBUG: ACHTUNG! Kein Token gefunden!")
+        print("DEBUG: ACHTUNG! Token ist leer.")
 
     try:
         # Scenario A: Cloud (MotherDuck)
         logger.info("Connecting to MotherDuck Cloud...")
         
-        # ÄNDERUNG: Wir lassen '?motherduck_token=...' weg!
-        # DuckDB findet die Variable 'MOTHERDUCK_TOKEN' jetzt automatisch.
-        # 'md:' verbindet dich einfach mit deinem Standard-Account.
+        # Jetzt ist es sicher, 'md:' zu nutzen, da os.environ['MOTHERDUCK_TOKEN'] sauber ist.
         conn = duckdb.connect('md:') 
         
-        # Hier definieren wir, welche Tabelle wir später nutzen wollen.
-        # Hinweis: Der Service-Account muss Zugriff auf diese Datenbank haben!
+        # Hinweis: Dein Service-Account muss Zugriff auf diese DB haben!
+        # Falls nicht, wird der nächste Fehler "Catalog not found" sein.
+        # Aber dann sind wir zumindest eingeloggt.
         TABLE_NAME = "my_db.main.data_nov25" 
         
         logger.info("Connected to MotherDuck Cloud")
 
-        # Load Calendar Data
         if conn:
             load_calendar_data(conn)
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        # Wir werfen den Fehler weiter, damit wir ihn im Log sehen
         raise e
-        
-        # 2. Initialize Config
-        load_config_data(conn)
-        
-        # 3. Create Helper Macros
-        create_day_class_macro(conn)
-        
-        # 4. Create Abstract View 'vbl_data'
-        # This View allows us to swap the source (Parquet vs MotherDuck) without changing queries.
-        # We use read_parquet for local to ensure hive_partitioning is enabled if needed,
-        # but the user requested 'SELECT * FROM {TABLE_NAME}'.
-        # For local, if TABLE_NAME is a string literal of a path, we can use it directly.
-        # However, to support hive_partitioning explicitly if auto-detect fails, we might need a tweak.
-        # But 'SELECT * FROM 'path'' usually triggers valid auto-detection.
-        # We alias it to vbl_data.
-        
-        conn.execute(f"CREATE OR REPLACE VIEW vbl_data AS SELECT *, CAST(date AS DATE) as date_dt FROM {TABLE_NAME}")
-        
-        # 5. Enriched View (Sequence)
-        conn.execute("""
-            CREATE OR REPLACE VIEW vbl_data_enriched AS
-            SELECT 
-                *,
-                ROW_NUMBER() OVER (
-                    PARTITION BY trip_id, date 
-                    ORDER BY COALESCE(departure_planned, arrival_planned) ASC
-                ) as stop_sequence
-            FROM vbl_data
-            WHERE (departure_planned IS NOT NULL OR arrival_planned IS NOT NULL)
-        """)
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
 
 # Initialize on module load
 _init_db()
