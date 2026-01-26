@@ -130,35 +130,31 @@ def _init_db():
     global conn, TABLE_NAME
     import os
     
-    # 1. Home-Verzeichnis Fix für Vercel
+    # 1. Home-Verzeichnis Fix (Zwingend für Vercel)
     os.environ['HOME'] = '/tmp'
     
-    # 2. Token holen und BEREINIGEN (.strip() entfernt Müll)
+    # 2. Token holen und REINIGEN
+    # .strip() ist der Lebensretter, der deine vorherigen Probleme löst
     raw_token = os.environ.get('MOTHERDUCK_TOKEN', '')
     clean_token = raw_token.strip()
     
-    # 3. DER TRICK: Wir überschreiben die System-Variable mit der sauberen Version!
-    # Jetzt findet duckdb.connect('md:') garantiert den sauberen Token.
-    os.environ['MOTHERDUCK_TOKEN'] = clean_token
-    
-    # Debugging
+    # Debug-Check (nur Endung)
     if clean_token:
-        print(f"DEBUG: Token bereinigt und gesetzt. Endung: ...{clean_token[-5:]}")
+        print(f"DEBUG: Nutze Personal Token mit Endung: ...{clean_token[-5:]}")
     else:
         print("DEBUG: ACHTUNG! Token ist leer.")
 
     try:
-        # Scenario A: Cloud (MotherDuck)
         logger.info("Connecting to MotherDuck Cloud...")
         
-        # Jetzt ist es sicher, 'md:' zu nutzen, da os.environ['MOTHERDUCK_TOKEN'] sauber ist.
-        conn = duckdb.connect('md:') 
+        # 3. EXPLIZITE VERBINDUNG
+        # Wir nutzen f-string mit dem sauberen Token. 
+        # Da wir einen Personal Token nutzen, dürfen wir auch direkt 'md:my_db' ansteuern.
+        # Falls 'my_db' nicht existiert, nimm nur 'md:'
         
-        # Hinweis: Dein Service-Account muss Zugriff auf diese DB haben!
-        # Falls nicht, wird der nächste Fehler "Catalog not found" sein.
-        # Aber dann sind wir zumindest eingeloggt.
-        TABLE_NAME = "my_db.main.data_nov25" 
+        conn = duckdb.connect(f'md:my_db?motherduck_token={clean_token}')
         
+        TABLE_NAME = "my_db.main.data_nov25"
         logger.info("Connected to MotherDuck Cloud")
 
         if conn:
