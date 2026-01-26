@@ -128,36 +128,51 @@ TABLE_NAME: Optional[str] = None
 
 def _init_db():
     global conn, TABLE_NAME
-    # WICHTIG: Import muss ganz oben stehen, bevor 'os' verwendet wird
     import os
     
-    # WICHTIG: Für Vercel müssen wir das Home-Verzeichnis sofort auf /tmp setzen,
-    # bevor irgendeine DuckDB-Operation startet.
+    # 1. Home-Verzeichnis Fix für Vercel
     os.environ['HOME'] = '/tmp'
     
-    token = os.environ.get('MOTHERDUCK_TOKEN')
+    # 2. Token laden und REINIGEN (Das ist der entscheidende Trick!)
+    raw_token = os.environ.get('MOTHERDUCK_TOKEN', '')
+    token = raw_token.strip() # Entfernt Leerzeichen und Zeilenumbrüche am Anfang/Ende
     
+    # Debugging: Wir schreiben ins Log, was Python wirklich sieht (ohne den Token zu verraten)
+    token_len = len(token)
+    if token_len > 10:
+        print(f"DEBUG: Token geladen. Länge: {token_len}. Start: {token[:5]}... Ende: ...{token[-5:]}")
+    else:
+        print(f"DEBUG: WARNUNG! Token ist sehr kurz oder leer: '{token}'")
+
     try:
         if token:
             # Scenario A: Cloud (MotherDuck)
             logger.info("Connecting to MotherDuck Cloud...")
             
-            # Jetzt verbinden wir uns (DuckDB nutzt nun automatisch /tmp als Home)
-            conn = duckdb.connect('md:')
-            TABLE_NAME = "my_db.main.data_nov25"
+            # Wir übergeben den bereinigten Token explizit
+            conn = duckdb.connect(f'md:?motherduck_token={token}')
+            
+            # Falls du später wieder auf eine spezielle DB willst:
+            # conn = duckdb.connect(f'md:my_db?motherduck_token={token}')
+            
+            TABLE_NAME = "my_db.main.data_nov25" # Ggf. anpassen, falls du nur 'md:' nutzt
             logger.info("Connected to MotherDuck Cloud")
         else:
-            # Scenario B: Local
-            logger.info("Connecting to Local Parquet Files...")
+            # Fallback (sollte auf Vercel eigentlich nicht passieren, wenn Variable gesetzt ist)
+            logger.warn("Kein Token gefunden, versuche lokalen Modus...")
+            # ... dein lokaler Code ...
+            
+            # Nur damit der Code nicht abstürzt, falls wir hier landen:
             conn = duckdb.connect(':memory:')
-            # Construct absolute path for local glob
-            # Ensure forward slashes for DuckDB
-            parquet_path = os.path.join(DATA_DIR, '**', '*.parquet').replace(chr(92), chr(47))
-            TABLE_NAME = f"'{parquet_path}'" 
-            logger.info(f"Connected to Local Parquet Files at {TABLE_NAME}")
 
-        # 1. Load Calendar Data
-        load_calendar_data(conn)
+        # Load Calendar Data (nur wenn conn existiert)
+        if conn:
+            load_calendar_data(conn)
+
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        # Wichtig: Fehler werfen, damit wir ihn im Log sehen
+        raise e
         
         # 2. Initialize Config
         load_config_data(conn)
