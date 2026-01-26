@@ -143,7 +143,7 @@ def _init_db():
             logger.info("Connecting to MotherDuck Cloud...")
             
             # Jetzt verbinden wir uns (DuckDB nutzt nun automatisch /tmp als Home)
-            conn = duckdb.connect(f'md:my_db?motherduck_token={token}')
+            conn = duckdb.connect('md:')
             TABLE_NAME = "my_db.main.data_nov25"
             logger.info("Connected to MotherDuck Cloud")
         else:
