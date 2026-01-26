@@ -130,29 +130,30 @@ def _init_db():
     global conn, TABLE_NAME
     import os
     
-    # 1. Home-Verzeichnis Fix (Zwingend für Vercel)
+    # 1. Zwingend für Vercel: Home auf /tmp
     os.environ['HOME'] = '/tmp'
     
-    # 2. Token holen und REINIGEN
-    # .strip() ist der Lebensretter, der deine vorherigen Probleme löst
+    # 2. Token holen und reinigen
     raw_token = os.environ.get('MOTHERDUCK_TOKEN', '')
     clean_token = raw_token.strip()
     
-    # Debug-Check (nur Endung)
-    if clean_token:
-        print(f"DEBUG: Nutze Personal Token mit Endung: ...{clean_token[-5:]}")
+    # 3. WICHTIG: Den sauberen Token zurück in die Umgebungsvariable schreiben!
+    # Damit kann DuckDB ihn sich selbst holen, ohne URL-Probleme.
+    os.environ['MOTHERDUCK_TOKEN'] = clean_token
+    
+    # Debugging (nur Endung prüfen)
+    if len(clean_token) > 5:
+        print(f"DEBUG: Token gesetzt. Endung: ...{clean_token[-5:]}")
     else:
-        print("DEBUG: ACHTUNG! Token ist leer.")
+        print("DEBUG: ACHTUNG! Token scheint leer zu sein.")
 
     try:
         logger.info("Connecting to MotherDuck Cloud...")
         
-        # 3. EXPLIZITE VERBINDUNG
-        # Wir nutzen f-string mit dem sauberen Token. 
-        # Da wir einen Personal Token nutzen, dürfen wir auch direkt 'md:my_db' ansteuern.
-        # Falls 'my_db' nicht existiert, nimm nur 'md:'
-        
-        conn = duckdb.connect(f'md:my_db?motherduck_token={clean_token}')
+        # 4. VERBINDUNG OHNE TOKEN IM STRING
+        # Wir verlassen uns voll auf die Umgebungsvariable oben.
+        # Das vermeidet Fehler durch Sonderzeichen im Token.
+        conn = duckdb.connect('md:my_db')
         
         TABLE_NAME = "my_db.main.data_nov25"
         logger.info("Connected to MotherDuck Cloud")
@@ -162,6 +163,7 @@ def _init_db():
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
+        # Fehler werfen, damit der Log rot wird, falls es noch hakt
         raise e
 
 # Initialize on module load
