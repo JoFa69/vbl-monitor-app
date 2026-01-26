@@ -134,7 +134,8 @@ def _init_db():
         if token:
             # Scenario A: Cloud (MotherDuck)
             logger.info("Connecting to MotherDuck Cloud...")
-            conn = duckdb.connect(f'md:my_db?motherduck_token={token}')
+            # Wir sagen DuckDB explizit, dass es /tmp als Home-Verzeichnis nutzen soll
+            conn = duckdb.connect(f'md:my_db?motherduck_token={token}', config={'home_directory': '/tmp'})
             TABLE_NAME = "my_db.main.data_nov25"
             logger.info("Connected to MotherDuck Cloud")
         else:
