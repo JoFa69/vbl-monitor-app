@@ -172,7 +172,8 @@ def _init_db():
         raise e
 
 # Initialize on module load
-_init_db()
+# LÖSCHEN oder AUSKOMMENTIEREN:
+#_init_db()
 
 def get_connection() -> duckdb.DuckDBPyConnection:
     """
