@@ -131,28 +131,28 @@ def _init_db():
     import os
     import duckdb
 
-    # 1. HARDCODED TOKEN (Nur für diesen Test!)
-    # Kopiere den Token aus deinem funktionierenden check_token.py hier rein.
-    TEST_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvY2hlbi5mYWJlckBnbWFpbC5jb20iLCJtZFJlZ2lvbiI6ImF3cy1ldS1jZW50cmFsLTEiLCJzZXNzaW9uIjoiam9jaGVuLmZhYmVyLmdtYWlsLmNvbSIsInBhdCI6InlTUURyMGpHZVYwYnB5Mm45Uk1HT0QwOHU0OGdTY1FDZkd6TEtmX1ExM00iLCJ1c2VySWQiOiJhZTQxNTNlOC00NGM0LTQxMDctYmY1Ny05MWU4ODBkNTk0YTQiLCJpc3MiOiJtZF9wYXQiLCJyZWFkT25seSI6ZmFsc2UsInRva2VuVHlwZSI6InJlYWRfd3JpdGUiLCJpYXQiOjE3Njk2MDE3OTB9.erli3Kv98LOVUe5aK_N_nVSQ30o1fllepx4ujamBp4s"  # <--- HIER EINFÜGEN
+    # 1. HARDCODED TOKEN (Wir bleiben dabei, bis es einmal grün ist)
+    TEST_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvY2hlbi5mYWJlckBnbWFpbC5jb20iLCJtZFJlZ2lvbiI6ImF3cy1ldS1jZW50cmFsLTEiLCJzZXNzaW9uIjoiam9jaGVuLmZhYmVyLmdtYWlsLmNvbSIsInBhdCI6InlTUURyMGpHZVYwYnB5Mm45Uk1HT0QwOHU0OGdTY1FDZkd6TEtmX1ExM00iLCJ1c2VySWQiOiJhZTQxNTNlOC00NGM0LTQxMDctYmY1Ny05MWU4ODBkNTk0YTQiLCJpc3MiOiJtZF9wYXQiLCJyZWFkT25seSI6ZmFsc2UsInRva2VuVHlwZSI6InJlYWRfd3JpdGUiLCJpYXQiOjE3Njk2MDE3OTB9.erli3Kv98LOVUe5aK_N_nVSQ30o1fllepx4ujamBp4s" # <-- HIER DEINEN FUNKTIONIERENDEN TOKEN
+    
+    logger.info(f"DEBUG: Python Version: {sys.version}")
+    logger.info("DEBUG: Versuche Verbindung via URL-Parameter...")
 
-    logger.info(f"DEBUG: Nutze HARDCODED Token (Länge: {len(TEST_TOKEN)})")
-
-    # 2. Defensiver Connect (Erstmal ohne DB-Name)
     try:
-        # Wir übergeben den Token direkt als String, keine Environment-Variable dazwischen!
-        conn = duckdb.connect("md:", config={"motherduck_token": TEST_TOKEN})
+        # TRICK 17: Token als URL-Parameter (?motherduck_token=...)
+        # Das umgeht alle Parsing-Probleme des config-Dictionaries.
+        connection_string = f"md:?motherduck_token={TEST_TOKEN}"
         
+        conn = duckdb.connect(connection_string)
         logger.info("DEBUG: Verbindung zur Lobby erfolgreich!")
-        
-        # 3. Datenbank auswählen
-        conn.sql("USE my_db") 
-        logger.info("DEBUG: Wechsel zu 'my_db' erfolgreich!")
+
+        conn.sql("USE my_db")
+        logger.info("DEBUG: Datenbank ausgewählt!")
         
         TABLE_NAME = "my_db.main.data_nov25"
 
     except Exception as e:
-        logger.error(f"DEBUG FATAL ERROR: {e}")
-        # Zeige uns, was schief ging
+        logger.error(f"DEBUG FATAL: {e}")
+        # Wir wollen den vollen Traceback im Log sehen
         import traceback
         traceback.print_exc()
         raise e
