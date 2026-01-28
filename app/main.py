@@ -1,20 +1,56 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import dashboard
+from contextlib import asynccontextmanager
 import shutil
 import os
 import sys
+import logging
+
+# Logger konfigurieren, damit wir Fehler im Render-Log sehen
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 print(">>> PYTHON VERSION:", sys.version)
 
+# Importiere _init_db explizit, damit wir es kontrolliert starten können
+from app.database import (
+    get_app_config, 
+    set_app_config, 
+    get_merged_config, 
+    conn, 
+    TABLE_NAME, 
+    _init_db  # <--- Stelle sicher, dass _init_db in database.py verfügbar ist!
+)
+from app.routes import dashboard, settings
 
-app = FastAPI(title="VBL Monitor API", version="0.2.0")
+# --- LIFESPAN MANAGER (DER FIX FÜR RENDER) ---
+# Das verhindert, dass die App beim Start einfriert, während sie auf die Datenbank wartet.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info(">>> STARTUP: Starte Datenbank-Verbindung...")
+    try:
+        _init_db()  # Hier wird die Verbindung erst aufgebaut
+        logger.info(">>> STARTUP: Verbindung erfolgreich!")
+    except Exception as e:
+        logger.error(f">>> STARTUP FEHLER: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    yield  # Hier läuft die App und nimmt Anfragen entgegen
+    
+    logger.info(">>> SHUTDOWN: App wird beendet.")
+
+# App Initialisierung mit Lifespan
+app = FastAPI(title="VBL Monitor API", version="0.2.0", lifespan=lifespan)
 
 # CORS Configuration
 origins = [
     "http://localhost:5173",  # React Frontend (Vite)
     "http://localhost:5174",  # React Frontend (Fallback port)
     "http://localhost:3000",
+    # Falls du später eine Frontend-URL bei Render hast, füge sie hier hinzu:
+    # "https://dein-frontend-name.onrender.com"
 ]
 
 app.add_middleware(
@@ -25,16 +61,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.routes import dashboard, settings
-
 # Include Routers
 app.include_router(dashboard.router)
 app.include_router(settings.router)
 
-from app.database import get_app_config, set_app_config, get_merged_config, conn, TABLE_NAME
-
-# View routes removed in favor of JSON API
-
+# --- API ROUTES ---
 
 @app.get("/api/config")
 async def get_config():
@@ -50,8 +81,7 @@ async def update_config(request: Request):
     """
     new_config = {}
     
-    # Handle checkboxes: if generic checkboxes are unchecked, they are missing from form data
-    # We explicitly check for known checkboxes
+    # Handle checkboxes
     form_data = await request.form()
     data_dict = dict(form_data)
     if 'ignore_outliers' not in data_dict:
@@ -69,9 +99,7 @@ async def update_config(request: Request):
         
         new_config[k] = val
     
-    
     # Handle time_presets nested structure
-    # Expected fields: morning_start, morning_end, evening_start, evening_end
     if 'morning_start' in data_dict:
         presets = {
             "morning": {
@@ -85,11 +113,7 @@ async def update_config(request: Request):
         }
         new_config['time_presets'] = presets
         
-        # Cleanup individual fields if they were added to new_config loop above
-        # (The loop above adds everything from form_data, so we should allow that or clean up. 
-        # database.py handles extra keys fine, but keeping config clean is better. 
-        # But set_app_config takes a dict and saves all keys. 
-        # Let's remove them from new_config to avoid cluttering config.json with flat keys)
+        # Cleanup individual fields
         for k in ['morning_start', 'morning_end', 'evening_start', 'evening_end']:
             if k in new_config:
                 del new_config[k]
@@ -105,9 +129,15 @@ async def upload_calendar(file: UploadFile = File(...)):
     Uploads a new calendar CSV file (Ferien_Feiertage.csv).
     """
     try:
-        # Determine path
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        target_path = os.path.join(base_dir, 'data', 'Ferien_Feiertage.csv')
+        # Determine path safely
+        # Wir nutzen os.getcwd(), was bei Render oft sicherer ist
+        base_dir = os.getcwd() 
+        # Fallback falls data Ordner nicht existiert
+        data_dir = os.path.join(base_dir, 'data')
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+            
+        target_path = os.path.join(data_dir, 'Ferien_Feiertage.csv')
         
         # Save file
         with open(target_path, "wb") as buffer:
@@ -115,12 +145,10 @@ async def upload_calendar(file: UploadFile = File(...)):
             
         return {"message": "Calendar data updated successfully. Changes will be reflected in next request."}
     except Exception as e:
+        logger.error(f"Upload Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# Mount static files (future proofing, though we use CDN for Pico)
-# Static files removed (API Internal Only)
 
 if __name__ == "__main__":
     import uvicorn
-    # Using port 8081 to avoid conflicts with common ports or restricted ranges
+    # Local development settings
     uvicorn.run("app.main:app", host="0.0.0.0", port=8081, reload=True)
