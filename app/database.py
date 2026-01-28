@@ -129,42 +129,67 @@ TABLE_NAME: Optional[str] = None
 def _init_db():
     global conn, TABLE_NAME
     import os
-    
-    # 1. Zwingend für Vercel: Home auf /tmp
-    os.environ['HOME'] = '/tmp'
-    
-    # 2. Token holen und reinigen
-    raw_token = os.environ.get('MOTHERDUCK_TOKEN', '')
-    clean_token = raw_token.strip()
-    
-    # 3. WICHTIG: Den sauberen Token zurück in die Umgebungsvariable schreiben!
-    # Damit kann DuckDB ihn sich selbst holen, ohne URL-Probleme.
-    os.environ['MOTHERDUCK_TOKEN'] = clean_token
-    
-    # Debugging (nur Endung prüfen)
-    if len(clean_token) > 5:
-        print(f"DEBUG: Token gesetzt. Endung: ...{clean_token[-5:]}")
-    else:
-        print("DEBUG: ACHTUNG! Token scheint leer zu sein.")
+
+    os.environ.setdefault("HOME", "/tmp")
+
+    token = os.environ.get('MOTHERDUCK_TOKEN')
 
     try:
-        logger.info("Connecting to MotherDuck Cloud...")
-        
-        # 4. VERBINDUNG OHNE TOKEN IM STRING
-        # Wir verlassen uns voll auf die Umgebungsvariable oben.
-        # Das vermeidet Fehler durch Sonderzeichen im Token.
-        conn = duckdb.connect('md:my_db')
-        
-        TABLE_NAME = "my_db.main.data_nov25"
-        logger.info("Connected to MotherDuck Cloud")
+        if token:
+            logger.info("Connecting to MotherDuck Cloud...")
 
-        if conn:
-            load_calendar_data(conn)
+            os.environ["MOTHERDUCK_TOKEN"] = token.strip()
+            conn = duckdb.connect("md:my_db")
+
+            TABLE_NAME = "my_db.main.data_nov25"
+            logger.info("Connected to MotherDuck Cloud")
+        else:
+            logger.info("Connecting to Local Parquet Files...")
+            conn = duckdb.connect(':memory:')
+
+            parquet_path = os.path.join(DATA_DIR, '**', '*.parquet').replace(chr(92), chr(47))
+            TABLE_NAME = f"'{parquet_path}'"
+
+            logger.info(f"Connected to Local Parquet Files at {TABLE_NAME}")
+
+        load_calendar_data(conn)
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        # Fehler werfen, damit der Log rot wird, falls es noch hakt
-        raise e
+        raise
+        
+def _init_db():
+    global conn, TABLE_NAME
+    import os
+
+    os.environ.setdefault("HOME", "/tmp")
+
+    token = os.environ.get('MOTHERDUCK_TOKEN')
+
+    try:
+        if token:
+            logger.info("Connecting to MotherDuck Cloud...")
+
+            os.environ["MOTHERDUCK_TOKEN"] = token.strip()
+            conn = duckdb.connect("md:my_db")
+
+            TABLE_NAME = "my_db.main.data_nov25"
+            logger.info("Connected to MotherDuck Cloud")
+        else:
+            logger.info("Connecting to Local Parquet Files...")
+            conn = duckdb.connect(':memory:')
+
+            parquet_path = os.path.join(DATA_DIR, '**', '*.parquet').replace(chr(92), chr(47))
+            TABLE_NAME = f"'{parquet_path}'"
+
+            logger.info(f"Connected to Local Parquet Files at {TABLE_NAME}")
+
+        load_calendar_data(conn)
+
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
 
 # Initialize on module load
 _init_db()
