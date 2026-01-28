@@ -131,62 +131,53 @@ TABLE_NAME: Optional[str] = None
 def _init_db():
     global conn, TABLE_NAME
     
+    # 1. HARDCODED TOKEN - Hier deinen Token zwischen die Anführungszeichen kopieren!
+    # Wichtig: Keine Leerzeichen davor oder dahinter im String!
+    MY_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvY2hlbi5mYWJlckBnbWFpbC5jb20iLCJtZFJlZ2lvbiI6ImF3cy1ldS1jZW50cmFsLTEiLCJzZXNzaW9uIjoiam9jaGVuLmZhYmVyLmdtYWlsLmNvbSIsInBhdCI6InlTUURyMGpHZVYwYnB5Mm45Uk1HT0QwOHU0OGdTY1FDZkd6TEtmX1ExM00iLCJ1c2VySWQiOiJhZTQxNTNlOC00NGM0LTQxMDctYmY1Ny05MWU4ODBkNTk0YTQiLCJpc3MiOiJtZF9wYXQiLCJyZWFkT25seSI6ZmFsc2UsInRva2VuVHlwZSI6InJlYWRfd3JpdGUiLCJpYXQiOjE3Njk2MDE3OTB9.erli3Kv98LOVUe5aK_N_nVSQ30o1fllepx4ujamBp4s"
+    
     # Render braucht ein Home-Verzeichnis
     os.environ.setdefault("HOME", "/tmp")
 
-    # Logging der Version zur Sicherheit
-    logging.info(f"DEBUG: Python Version: {sys.version}")
-
-    # Token holen
-    token = os.environ.get("MOTHERDUCK_TOKEN")
-    
-    if not token:
-        logging.error("FATAL: Kein MOTHERDUCK_TOKEN gefunden!")
-        # Wir werfen hier keinen Fehler, damit lokale Tests vielleicht noch gehen,
-        # aber auf Render wird das geloggt.
-    else:
-        token = token.strip()
-
     try:
-        logging.info("DEBUG: Verbinde mit MotherDuck...")
+        logging.info("DEBUG: Starte Hardcoded-Verbindung...")
         
-        # FIX: Token direkt in den String einbauen (URL-Parameter-Stil)
-        # Das löst das Python 3.11/3.13 Problem
-        if token:
-            conn_str = f"md:?motherduck_token={token}"
-        else:
-            conn_str = "md:" # Fallback (wird auf Server scheitern, aber lokal evtl gehen)
+        # Wir bauen den Connection-String manuell zusammen
+        # Das ?motherduck_token=... Format ist am stabilsten
+        connection_string = f"md:?motherduck_token={MY_TOKEN}"
+        
+        # Verbinden
+        conn = duckdb.connect(connection_string)
+        logging.info("DEBUG: Verbindung zur Lobby erfolgreich!")
 
-        conn = duckdb.connect(conn_str)
-        logging.info("DEBUG: Verbindung hergestellt!")
-
-        # Datenbank wählen (Sicherer Weg)
-        # Wir prüfen erst, was da ist, um Abstürze zu vermeiden
+        # Datenbank auswählen (mit Prüfung, um Absturz zu vermeiden)
         try:
-            dbs = conn.sql("SHOW DATABASES").fetchall()
-            db_names = [x[0] for x in dbs]
-            logging.info(f"DEBUG: Gefundene DBs: {db_names}")
+            dbs_df = conn.sql("SHOW DATABASES").df()
+            found_dbs = dbs_df['name'].tolist()
+            logging.info(f"DEBUG: Gefundene DBs: {found_dbs}")
 
-            if "my_db" in db_names:
+            if "my_db" in found_dbs:
                 conn.sql("USE my_db")
                 TABLE_NAME = "my_db.main.data_nov25"
-                logging.info("DEBUG: my_db ausgewählt.")
-            elif len(db_names) > 0:
-                # Fallback auf die erste gefundene DB
-                conn.sql(f"USE {db_names[0]}")
-                TABLE_NAME = f"{db_names[0]}.main.data_nov25"
-                logging.warning(f"WARNUNG: my_db nicht gefunden. Nutze {db_names[0]}")
-        except Exception as e:
-            logging.error(f"Fehler bei DB-Auswahl: {e}")
-            # Trotzdem versuchen weiterzumachen
+                logging.info("DEBUG: 'my_db' erfolgreich ausgewählt.")
+            elif len(found_dbs) > 0:
+                # Fallback: Nimm die erste, die da ist
+                first_db = found_dbs[0]
+                conn.sql(f"USE {first_db}")
+                TABLE_NAME = f"{first_db}.main.data_nov25"
+                logging.warning(f"WARNUNG: 'my_db' nicht gefunden. Nutze '{first_db}'")
+            else:
+                logging.error("FATAL: Login ging, aber keine Datenbanken sichtbar!")
+
+        except Exception as inner_e:
+            logging.error(f"Fehler bei DB-Auswahl: {inner_e}")
+            # Wir machen weiter, auch wenn das fehlschlägt, damit der Server startet
             pass
 
     except Exception as e:
         logging.error(f"CRITICAL DB ERROR: {e}")
         import traceback
         traceback.print_exc()
-        # Wir raisen hier NICHT, damit der Server oben bleibt (für Logs)
-        # Aber conn bleibt None, was wir abfangen müssen.
+        # Wir lassen die App trotzdem starten (Conn bleibt None), damit du Logs siehst
 
 # --- HIER ENDET DER NEUE CODE ---
 
