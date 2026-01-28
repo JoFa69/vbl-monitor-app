@@ -128,28 +128,32 @@ TABLE_NAME: Optional[str] = None
 
 def _init_db():
     global conn, TABLE_NAME
+    import os
+
+    os.environ.setdefault("HOME", "/tmp")
+
     token = os.environ.get('MOTHERDUCK_TOKEN')
-    
+
     try:
         if token:
-            # Scenario A: Cloud (MotherDuck)
             logger.info("Connecting to MotherDuck Cloud...")
-            conn = duckdb.connect(f'md:my_db?motherduck_token={token}')
+
+            os.environ["MOTHERDUCK_TOKEN"] = token.strip()
+            conn = duckdb.connect("md:my_db")
+
             TABLE_NAME = "my_db.main.data_nov25"
             logger.info("Connected to MotherDuck Cloud")
         else:
-            # Scenario B: Local
             logger.info("Connecting to Local Parquet Files...")
             conn = duckdb.connect(':memory:')
-            # Construct absolute path for local glob
-            # Ensure forward slashes for DuckDB
+
             parquet_path = os.path.join(DATA_DIR, '**', '*.parquet').replace(chr(92), chr(47))
-            TABLE_NAME = f"'{parquet_path}'" 
+            TABLE_NAME = f"'{parquet_path}'"
+
             logger.info(f"Connected to Local Parquet Files at {TABLE_NAME}")
 
-        # 1. Load Calendar Data
         load_calendar_data(conn)
-        
+
         # 2. Initialize Config
         load_config_data(conn)
         

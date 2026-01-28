@@ -9,5 +9,8 @@ echo Starting Frontend (Port 5173)...
 cd frontend
 start "VBL Frontend" cmd /k "npm run dev"
 
+
+start http://localhost:5173
+
 echo Done. Backend runs on http://localhost:8081/api/stats
 echo Frontend runs on http://localhost:5173
