@@ -132,64 +132,26 @@ def _init_db():
 
     os.environ.setdefault("HOME", "/tmp")
 
-    token = os.environ.get('MOTHERDUCK_TOKEN')
+    token = os.environ.get("MOTHERDUCK_TOKEN")
+    token = token.strip() if token else None
 
     try:
         if token:
             logger.info("Connecting to MotherDuck Cloud...")
-
-            os.environ["MOTHERDUCK_TOKEN"] = token.strip()
+            os.environ["MOTHERDUCK_TOKEN"] = token
             conn = duckdb.connect("md:my_db")
-
             TABLE_NAME = "my_db.main.data_nov25"
-            logger.info("Connected to MotherDuck Cloud")
         else:
             logger.info("Connecting to Local Parquet Files...")
-            conn = duckdb.connect(':memory:')
-
-            parquet_path = os.path.join(DATA_DIR, '**', '*.parquet').replace(chr(92), chr(47))
+            conn = duckdb.connect(":memory:")
+            parquet_path = os.path.join(DATA_DIR, "**", "*.parquet").replace("\\", "/")
             TABLE_NAME = f"'{parquet_path}'"
-
-            logger.info(f"Connected to Local Parquet Files at {TABLE_NAME}")
 
         load_calendar_data(conn)
 
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
-        
-def _init_db():
-    global conn, TABLE_NAME
-    import os
-
-    os.environ.setdefault("HOME", "/tmp")
-
-    token = os.environ.get('MOTHERDUCK_TOKEN')
-
-    try:
-        if token:
-            logger.info("Connecting to MotherDuck Cloud...")
-
-            os.environ["MOTHERDUCK_TOKEN"] = token.strip()
-            conn = duckdb.connect("md:my_db")
-
-            TABLE_NAME = "my_db.main.data_nov25"
-            logger.info("Connected to MotherDuck Cloud")
-        else:
-            logger.info("Connecting to Local Parquet Files...")
-            conn = duckdb.connect(':memory:')
-
-            parquet_path = os.path.join(DATA_DIR, '**', '*.parquet').replace(chr(92), chr(47))
-            TABLE_NAME = f"'{parquet_path}'"
-
-            logger.info(f"Connected to Local Parquet Files at {TABLE_NAME}")
-
-        load_calendar_data(conn)
-
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
-
 
 # Initialize on module load
 _init_db()
