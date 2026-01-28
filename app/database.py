@@ -131,44 +131,30 @@ def _init_db():
     import os
     import duckdb
 
-    # Wichtig für Render (schreibbares Verzeichnis)
-    os.environ.setdefault("HOME", "/tmp")
+    # 1. HARDCODED TOKEN (Nur für diesen Test!)
+    # Kopiere den Token aus deinem funktionierenden check_token.py hier rein.
+    TEST_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImpvY2hlbi5mYWJlckBnbWFpbC5jb20iLCJtZFJlZ2lvbiI6ImF3cy1ldS1jZW50cmFsLTEiLCJzZXNzaW9uIjoiam9jaGVuLmZhYmVyLmdtYWlsLmNvbSIsInBhdCI6InlTUURyMGpHZVYwYnB5Mm45Uk1HT0QwOHU0OGdTY1FDZkd6TEtmX1ExM00iLCJ1c2VySWQiOiJhZTQxNTNlOC00NGM0LTQxMDctYmY1Ny05MWU4ODBkNTk0YTQiLCJpc3MiOiJtZF9wYXQiLCJyZWFkT25seSI6ZmFsc2UsInRva2VuVHlwZSI6InJlYWRfd3JpdGUiLCJpYXQiOjE3Njk2MDE3OTB9.erli3Kv98LOVUe5aK_N_nVSQ30o1fllepx4ujamBp4s"  # <--- HIER EINFÜGEN
 
-    # 1. Token holen (Sowohl GROSS als auch klein prüfen)
-    token = os.environ.get("MOTHERDUCK_TOKEN") or os.environ.get("motherduck_token")
-    token = token.strip() if token else None
+    logger.info(f"DEBUG: Nutze HARDCODED Token (Länge: {len(TEST_TOKEN)})")
 
-    # 2. DEBUGGING-AUSGABE (Damit wir im Log sofort Klarheit haben)
-    if token:
-        # Wir zeigen nur die ersten 4 Zeichen, damit der Key geheim bleibt, wir aber sehen, ob er da ist
-        print(f"DEBUG: Token gefunden! Länge: {len(token)}. Start: {token[:4]}...")
-    else:
-        print("DEBUG: ACHTUNG - Kein Token in den Environment Variables gefunden!")
-
+    # 2. Defensiver Connect (Erstmal ohne DB-Name)
     try:
-        if token:
-            logger.info("Connecting to MotherDuck Cloud...")
-            
-            # 3. DER ENTSCHEIDENDE FIX:
-            # Wir verlassen uns nicht auf os.environ, sondern übergeben den Token direkt in der Config!
-            conn = duckdb.connect("md:my_db", config={"motherduck_token": token})
-            
-            TABLE_NAME = "my_db.main.data_nov25"
-        else:
-            logger.info("Connecting to Local Parquet Files...")
-            conn = duckdb.connect(":memory:")
-            # Hinweis: Stelle sicher, dass DATA_DIR definiert ist
-            parquet_path = os.path.join(DATA_DIR, "**", "*.parquet").replace("\\", "/")
-            TABLE_NAME = f"'{parquet_path}'"
-
-        # Falls diese Funktion existiert:
-        load_calendar_data(conn)
+        # Wir übergeben den Token direkt als String, keine Environment-Variable dazwischen!
+        conn = duckdb.connect("md:", config={"motherduck_token": TEST_TOKEN})
+        
+        logger.info("DEBUG: Verbindung zur Lobby erfolgreich!")
+        
+        # 3. Datenbank auswählen
+        conn.sql("USE my_db") 
+        logger.info("DEBUG: Wechsel zu 'my_db' erfolgreich!")
+        
+        TABLE_NAME = "my_db.main.data_nov25"
 
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        # Wichtig: Den Stacktrace sehen
+        logger.error(f"DEBUG FATAL ERROR: {e}")
+        # Zeige uns, was schief ging
         import traceback
-        traceback.print_exc() 
+        traceback.print_exc()
         raise e
 
 # Initialize on module load
