@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import dashboard
 import shutil
 import os
+import sys
+print(">>> PYTHON VERSION:", sys.version)
+
 
 app = FastAPI(title="VBL Monitor API", version="0.2.0")
 
