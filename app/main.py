@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import dashboard
 import shutil
@@ -114,8 +115,24 @@ async def upload_calendar(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Mount static files (future proofing, though we use CDN for Pico)
-# Static files removed (API Internal Only)
+# Serve Frontend (Monolithic Mode)
+# If the frontend/dist directory exists, we serve it as static files.
+# This allows the app to be deployed as a single service.
+frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+
+if os.path.exists(frontend_dist):
+    # Mount assets (CSS, JS, Images)
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+    
+    # Catch-all route for React Router (SPA)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Allow API calls to pass through (though they should be handled by specific routes above)
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+            
+        # Serve index.html for all other routes
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn
